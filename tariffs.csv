@@ -1,0 +1,14 @@
+Company,Plan,Date,Time-Start,Time-End,Band,Consume-price,Export-price,Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+Energia,Energia Smart Data,05/04/2024,23:00,08:00,Night Rate,20.14,24,1,1,1,1,1,1,1
+Energia,Energia Smart Data,05/04/2024,08:00,17:00,Day Rate,37.62,24,1,1,1,1,1,1,1
+Energia,Energia Smart Data,05/04/2024,17:00,19:00,Peak Rate,39.43,24,1,1,1,1,1,1,1
+Energia,Energia Smart Data,05/04/2024,19:00,23:00,Day Rate,37.62,24,1,1,1,1,1,1,1
+Energia,Energia Smart Drive,05/04/2024,06:00,02:00,All other Time,39.84,24,1,1,1,1,1,1,1
+Energia,Energia Smart Drive,05/04/2024,02:00,06:00,Electric Car Charge Time,8.87,24,1,1,1,1,1,1,1
+Energia,Energia Smart Drive (1st yr),05/04/2024,06:00,02:00,All other Time,33.86,24,1,1,1,1,1,1,1
+Energia,Energia Smart Drive (1st yr),05/04/2024,02:00,06:00,Electric Car Charge Time,7.54,24,1,1,1,1,1,1,1
+Energia,Energia Smart 24 Hour,05/04/2024,00:00,00:00,24x7,35.84,24,1,1,1,1,1,1,1
+Electric Ireland,Home Electric+ Night Boost,05/04/2024,08:00,23:00,Day,36.15,21,1,1,1,1,1,1,1
+Electric Ireland,Home Electric+ Night Boost,05/04/2024,23:00,02:00,Night,17.83,21,1,1,1,1,1,1,1
+Electric Ireland,Home Electric+ Night Boost,05/04/2024,02:00,04:00,Night Boost,10.47,21,1,1,1,1,1,1,1
+Electric Ireland,Home Electric+ Night Boost,05/04/2024,04:00,08:00,Night,17.83,21,1,1,1,1,1,1,1
