@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Electricity Usage, Tariffs, and Battery Simulation</title>
+    <title>Electricity Usage and Tariffs</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.0.0/plotly.min.js"></script>
@@ -11,15 +11,17 @@
 </head>
 <body>
     <style>
+        /* Custom CSS for changing file input button color */
         .custom-file-input {
-            color: #fff !important;
-            background-color: #007bff !important;
-            border-color: #007bff !important;
+            color: #fff !important; /* Change the text color */
+            background-color: #007bff !important; /* Change the background color */
+            border-color: #007bff !important; /* Change the border color */
         }
     </style>
     <div class="container-fluid">
-        <div class="alert alert-success" role="alert" id="tariffLoadStatus"></div>
-        <h1>Electricity Usage, Tariffs, and Battery Simulation</h1>
+        <div class="alert alert-success" role="alert" id="tariffLoadStatus">
+        </div>
+        <h1>Electricity Usage and Tariffs</h1>
         <div class="row">
             <div class="col-md-6">
                 <h3>Electricity Usage Data File</h3>
@@ -27,33 +29,12 @@
             </div>
             <hr class="my-4">
         </div>
-        <div class="row mt-3">
-            <div class="col-md-4">
-                <h3>Battery Configuration</h3>
-                <div class="form-group">
-                    <label for="batteryCapacity">Battery Capacity (kWh):</label>
-                    <input type="number" class="form-control" id="batteryCapacity" value="13.5">
-                </div>
-                <div class="form-group">
-                    <label for="batteryEfficiency">Battery Efficiency (%):</label>
-                    <input type="number" class="form-control" id="batteryEfficiency" value="90">
-                </div>
-                <div class="form-group">
-                    <label for="initialCharge">Initial Charge (%):</label>
-                    <input type="number" class="form-control" id="initialCharge" value="50">
-                </div>
-                <button id="calculateWithBattery" class="btn btn-primary mt-2">Calculate with Battery</button>
-            </div>
-        </div>
         <div class="row">
             <div class="col-md-12">
                 <div id="tariffCostsTable"></div>
             </div>
             <div class="col-md-12">
                 <div id="summaryTable"></div>
-            </div>
-            <div class="col-md-12">
-                <div id="batterySavingsTable"></div>
             </div>
         </div>
         <div class="row">
@@ -99,388 +80,309 @@
             </div>
         </div>
     </div>
-    <script>
-    // Variables to hold parsed CSV data
-    headingSummaryHourTable.style.display = "none";
-    headingUsageTable.style.display = "none";
-    headingTariffTable.style.display = "none";
-    const usageCSVData = [];
-    const tariffCSVData = [];
-    let globalDetailedUsage = [];
-    let structuredTariffData = [];
-    let batteryCapacity = 13.5; // kWh
-    let batteryEfficiency = 0.90; // 90%
-    let batteryCharge = 6.75; // kWh (50% of 13.5 kWh)
+	<script>
+	// Variables to hold parsed CSV data
+	headingSummaryHourTable.style.display = "none";
+	headingUsageTable.style.display = "none";
+	headingTariffTable.style.display = "none";
+	const usageCSVData = [];
+	const tariffCSVData = [];
+	let globalDetailedUsage = [];
+	let structuredTariffData = [];
+	// Function to read CSV file
+	function readCSV(file, callback) {
+		const reader = new FileReader();
+		reader.onload = function(e) {
+			try {
+				const rows = e.target.result.split('\n');
+				const data = [];
+				for(let i = 0; i < rows.length; i++) {
+					data.push(rows[i].split(','));
+				}
+				callback(data);
+			} catch (error) {
+				console.error('Error reading CSV file:', error);
+			}
+		};
+		reader.readAsText(file);
+	}
+	// Function to display CSV data in a table
+	function displayCSV(data, targetElement, title) {
+		let tableHTML = title + '<table class="table table-sm table-bordered table-striped">';
+		for(let i = 0; i < Math.min(4, data.length); i++) {
+			const cells = data[i];
+			if(i === 0) {
+				tableHTML += '<thead class="thead-lite"><tr>';
+				for(let j = 0; j < cells.length; j++) {
+					tableHTML += '<th>' + cells[j] + '</th>';
+				}
+				tableHTML += '</tr></thead><tbody>';
+			} else {
+				tableHTML += '<tr>';
+				for(let j = 0; j < cells.length; j++) {
+					tableHTML += '<td>' + cells[j] + '</td>';
+				}
+				tableHTML += '</tr>';
+			}
+		}
+		if(data.length > 5) {
+			tableHTML += '<tr><td colspan="' + data[0].length + '">...</td></tr>';
+		}
+		for(let i = Math.max(3, data.length - 3); i < data.length; i++) {
+			const cells = data[i];
+			tableHTML += '<tr>';
+			for(let j = 0; j < cells.length; j++) {
+				tableHTML += '<td>' + cells[j] + '</td>';
+			}
+			tableHTML += '</tr>';
+		}
+		tableHTML += '</tbody></table>';
+		document.getElementById(targetElement).innerHTML = tableHTML;
+	}
+	// Function to create chart using Plotly
+	function createPlotlyCharts(seriesData) {
+		const trace = {
+			x: seriesData.map(data => data.x),
+			y: seriesData.map(data => data.y),
+			type: 'bar',
+			marker: {
+				color: seriesData.map(data => (data.y < 0 ? '#800080' : '#488fc2'))
+			}
+		};
+		const layout = {
+			title: 'Electricity Usage Timeline',
+			xaxis: {
+				title: 'Timestamp',
+				type: 'date'
+			},
+			yaxis: {
+				title: 'Usage'
+			}
+		};
+		Plotly.newPlot('chart', [trace], layout);
+	}
+	// function to calculate the total cost of electricity usage
+	function calculateCostsUsingTariff(detailedUsage, tariffData) {
+		const costByCompanyAndPlan = {};
+		Object.entries(detailedUsage).forEach(([monthYear, days]) => {
+			Object.entries(days).forEach(([dayOfWeek, hours]) => {
+				Object.entries(hours).forEach(([hour, usage]) => {
+					tariffData.forEach(tariff => {
+						// Ensure to parse it as an integer since keys from objects are strings
+						const dayIndex = parseInt(dayOfWeek, 10);
+						// Skip if the tariff doesn't apply to this day of the week
+						if(!tariff.days[dayIndex]) return;
+						const startHour = parseInt(tariff.timeStart.split(':')[0], 10);
+						const endHour = tariff.timeEnd === "00:00" ? 24 : parseInt(tariff.timeEnd.split(':')[0], 10);
+						const hourInt = parseInt(hour, 10);
+						// Adjusted check for time applicability to handle spans that cross midnight
+						const isTimeApplicable = endHour > startHour ? (hourInt >= startHour && hourInt < endHour) : // For times that don't span midnight
+							(hourInt >= startHour || hourInt < endHour); // For times that do span midnight
+						if(isTimeApplicable) {
+							// Initialize cost structure if not present
+							if(!costByCompanyAndPlan[tariff.company]) {
+								costByCompanyAndPlan[tariff.company] = {};
+							}
+							if(!costByCompanyAndPlan[tariff.company][tariff.plan]) {
+								costByCompanyAndPlan[tariff.company][tariff.plan] = {
+									totalCostImport: 0,
+									totalCostExport: 0
+								};
+							}
+							// Calculate and add to the total cost for import and export separately
+							const costImport = usage.import * tariff.consumePrice;
+							const costExport = usage.export * tariff.exportPrice;
+							costByCompanyAndPlan[tariff.company][tariff.plan].totalCostImport += costImport;
+							costByCompanyAndPlan[tariff.company][tariff.plan].totalCostExport += costExport;
+						}
+					});
+				});
+			});
+		});
+		return costByCompanyAndPlan;
+	}
+	// Function to display the summarized data on the page
+	function displaySummary(summaryData) {
+		let summaryHTML = "<h3>Monthly Summary</h3><table class='table table-sm table-bordered table-striped'>";
+		summaryHTML += "<thead class='thead-light'><tr><th>Month-Year</th><th>Total Import (kW)</th><th>Total Export (kW)</th></tr></thead><tbody>";
+		Object.keys(summaryData).forEach(monthYear => {
+			const {
+				import: totalImport,
+				export: totalExport
+			} = summaryData[monthYear];
+			summaryHTML += `<tr><td>${monthYear}</td><td>${totalImport.toFixed(2)}</td><td>${totalExport.toFixed(2)}</td></tr>`;
+		});
+		summaryHTML += "</tbody></table>";
+		document.getElementById("summaryTable").innerHTML = summaryHTML; // Ensure you have a div with id="summaryTable"
+	}
+	// Function to display tariff costs per plan grouped by company
+	function displayTariffCosts(groupedData) {
+		let tableHTML = '<h3>Tariff Costs per Plan Grouped by Company</h3><table class="table table-sm table-bordered table-striped">';
+		tableHTML += '<thead class="thead-lite"><tr><th>Company</th><th>Plan</th><th>Total Import Cost (€)</th><th>Total Export Revenue (€)</th></tr></thead><tbody>';
+		Object.entries(groupedData).forEach(([company, plans]) => {
+			Object.entries(plans).forEach(([plan, costDetails]) => {
+				const totalCostExport = (costDetails.totalCostExport / 100).toLocaleString('en-US', {
+					style: 'currency',
+					currency: 'EUR'
+				});
+				const totalCostImport = (costDetails.totalCostImport / 100).toLocaleString('en-US', {
+					style: 'currency',
+					currency: 'EUR'
+				});
+				tableHTML += `<tr><td>${company}</td><td>${plan}</td><td>${totalCostImport}</td><td>${totalCostExport}</td></tr>`;
+			});
+		});
+		tableHTML += '</tbody></table>';
+		document.getElementById('tariffCostsTable').innerHTML = tableHTML;
+	}
 
-    // Function to read CSV file
-    function readCSV(file, callback) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const rows = e.target.result.split('\n');
-                const data = [];
-                for(let i = 0; i < rows.length; i++) {
-                    data.push(rows[i].split(','));
-                }
-                callback(data);
-            } catch (error) {
-                console.error('Error reading CSV file:', error);
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    // Function to display CSV data in a table
-    function displayCSV(data, targetElement, title) {
-        let tableHTML = title + '<table class="table table-sm table-bordered table-striped">';
-        for(let i = 0; i < Math.min(4, data.length); i++) {
-            const cells = data[i];
-            if(i === 0) {
-                tableHTML += '<thead class="thead-lite"><tr>';
-                for(let j = 0; j < cells.length; j++) {
-                    tableHTML += '<th>' + cells[j] + '</th>';
-                }
-                tableHTML += '</tr></thead><tbody>';
-            } else {
-                tableHTML += '<tr>';
-                for(let j = 0; j < cells.length; j++) {
-                    tableHTML += '<td>' + cells[j] + '</td>';
-                }
-                tableHTML += '</tr>';
-            }
-        }
-        if(data.length > 5) {
-            tableHTML += '<tr><td colspan="' + data[0].length + '">...</td></tr>';
-        }
-        for(let i = Math.max(3, data.length - 3); i < data.length; i++) {
-            const cells = data[i];
-            tableHTML += '<tr>';
-            for(let j = 0; j < cells.length; j++) {
-                tableHTML += '<td>' + cells[j] + '</td>';
-            }
-            tableHTML += '</tr>';
-        }
-        tableHTML += '</tbody></table>';
-        document.getElementById(targetElement).innerHTML = tableHTML;
-    }
-
-    // Function to create chart using Plotly
-    function createPlotlyCharts(seriesData) {
-        const trace = {
-            x: seriesData.map(data => data.x),
-            y: seriesData.map(data => data.y),
-            type: 'bar',
-            marker: {
-                color: seriesData.map(data => (data.y < 0 ? '#800080' : '#488fc2'))
-            }
-        };
-        const layout = {
-            title: 'Electricity Usage Timeline',
-            xaxis: {
-                title: 'Timestamp',
-                type: 'date'
-            },
-            yaxis: {
-                title: 'Usage'
-            }
-        };
-        Plotly.newPlot('chart', [trace], layout);
-    }
-
-    // Function to find the applicable tariff
-    function findApplicableTariff(tariffData, dayOfWeek, hour) {
-        const applicableTariffs = tariffData.filter(tariff => 
-            tariff.days[dayOfWeek] && 
-            isTimeInRange(hour, tariff.timeStart, tariff.timeEnd)
-        );
-
-        // If multiple tariffs apply, choose the one with the lowest consume price
-        return applicableTariffs.reduce((lowest, current) => 
-            current.consumePrice < lowest.consumePrice ? current : lowest
-        );
-    }
-
-    // Helper function to check if a time is within a given range
-    function isTimeInRange(hour, start, end) {
-        const startHour = parseInt(start.split(':')[0], 10);
-        const endHour = end === "00:00" ? 24 : parseInt(end.split(':')[0], 10);
-        
-        if (endHour > startHour) {
-            return hour >= startHour && hour < endHour;
-        } else {
-            // Handle tariffs that span midnight
-            return hour >= startHour || hour < endHour;
-        }
-    }
-
-    // Function to simulate battery usage
-    function simulateBatteryUsage(detailedUsage, tariffData) {
-        const batteryUsage = JSON.parse(JSON.stringify(detailedUsage)); // Deep copy
-        const batterySavings = {totalSaved: 0, byMonth: {}};
-        const cheapThreshold = 20; // cents per kWh
-        const expensiveThreshold = 30; // cents per kWh
-
-        Object.entries(batteryUsage).forEach(([monthYear, days]) => {
-            batterySavings.byMonth[monthYear] = 0;
-            Object.entries(days).forEach(([dayOfWeek, hours]) => {
-                Object.entries(hours).forEach(([hour, usage]) => {
-                    const hourInt = parseInt(hour, 10);
-                    const currentTariff = findApplicableTariff(tariffData, dayOfWeek, hourInt);
-
-                    // Charge battery during cheap hours if not full
-                    if (currentTariff.consumePrice < cheapThreshold && batteryCharge < batteryCapacity) {
-                        const chargeAmount = Math.min(batteryCapacity - batteryCharge, usage.import);
-                        batteryCharge += chargeAmount * batteryEfficiency;
-                        usage.import -= chargeAmount;
-                    }
-
-                    // Use battery during expensive hours
-                    if (currentTariff.consumePrice > expensiveThreshold && batteryCharge > 0) {
-                        const dischargeAmount = Math.min(batteryCharge, usage.import);
-                        batteryCharge -= dischargeAmount;
-                        usage.import -= dischargeAmount;
-                        const savings = dischargeAmount * currentTariff.consumePrice / 100; // Convert cents to euros
-                        batterySavings.totalSaved += savings;
-                        batterySavings.byMonth[monthYear] += savings;
-                    }
-
-                    // Store excess solar in battery
-                    if (usage.export > 0 && batteryCharge < batteryCapacity) {
-                        const storeAmount = Math.min(batteryCapacity - batteryCharge, usage.export);
-                        batteryCharge += storeAmount * batteryEfficiency;
-                        usage.export -= storeAmount;
-                    }
-                });
-            });
-        });
-
-        return { batteryUsage, batterySavings };
-    }
-
-    // Function to calculate costs using tariff
-    function calculateCostsUsingTariff(detailedUsage, tariffData) {
-        const { batteryUsage, batterySavings } = simulateBatteryUsage(detailedUsage, tariffData);
-        const costByCompanyAndPlan = {};
-
-        Object.entries(batteryUsage).forEach(([monthYear, days]) => {
-            Object.entries(days).forEach(([dayOfWeek, hours]) => {
-                Object.entries(hours).forEach(([hour, usage]) => {
-                    const hourInt = parseInt(hour, 10);
-                    const currentTariff = findApplicableTariff(tariffData, dayOfWeek, hourInt);
-
-                    if (!costByCompanyAndPlan[currentTariff.company]) {
-                        costByCompanyAndPlan[currentTariff.company] = {};
-                    }
-                    if (!costByCompanyAndPlan[currentTariff.company][currentTariff.plan]) {
-                        costByCompanyAndPlan[currentTariff.company][currentTariff.plan] = {
-                            totalCostImport: 0,
-                            totalCostExport: 0
-                        };
-                    }
-
-                    const costImport = usage.import * currentTariff.consumePrice / 100; // Convert cents to euros
-                    const costExport = usage.export * currentTariff.exportPrice / 100; // Convert cents to euros
-                    costByCompanyAndPlan[currentTariff.company][currentTariff.plan].totalCostImport += costImport;
-                    costByCompanyAndPlan[currentTariff.company][currentTariff.plan].totalCostExport += costExport;
-                });
-            });
-        });
-
-        return { costByCompanyAndPlan, batterySavings };
-    }
-
-    // Function to display the summarized data on the page
-    function displaySummary(summaryData) {
-        let summaryHTML = "<h3>Monthly Summary</h3><table class='table table-sm table-bordered table-striped'>";
-        summaryHTML += "<thead class='thead-light'><tr><th>Month-Year</th><th>Total Import (kW)</th><th>Total Export (kW)</th></tr></thead><tbody>";
-        Object.keys(summaryData).forEach(monthYear => {
-            const { import: totalImport, export: totalExport } = summaryData[monthYear];
-            summaryHTML += `<tr><td>${monthYear}</td><td>${totalImport.toFixed(2)}</td><td>${totalExport.toFixed(2)}</td></tr>`;
-        });
-        summaryHTML += "</tbody></table>";
-        document.getElementById("summaryTable").innerHTML = summaryHTML;
-    }
-
-    // Function to display tariff costs per plan grouped by company
-    function displayTariffCosts(groupedData) {
-        let tableHTML = '<h3>Tariff Costs per Plan Grouped by Company</h3><table class="table table-sm table-bordered table-striped">';
-        tableHTML += '<thead class="thead-lite"><tr><th>Company</th><th>Plan</th><th>Total Import Cost (€)</th><th>Total Export Revenue (€)</th></tr></thead><tbody>';
-Object.entries(groupedData).forEach(([company, plans]) => {
-        Object.entries(plans).forEach(([plan, costDetails]) => {
-            const totalCostExport = costDetails.totalCostExport.toLocaleString('en-US', {
-                style: 'currency',
-                currency: 'EUR'
-            });
-            const totalCostImport = costDetails.totalCostImport.toLocaleString('en-US', {
-                style: 'currency',
-                currency: 'EUR'
-            });
-            tableHTML += `<tr><td>${company}</td><td>${plan}</td><td>${totalCostImport}</td><td>${totalCostExport}</td></tr>`;
-        });
-    });
-    tableHTML += '</tbody></table>';
-    document.getElementById('tariffCostsTable').innerHTML = tableHTML;
-}
-
-// Function to display battery savings
-function displayBatterySavings(batterySavings) {
-    let tableHTML = '<h3>Battery Savings</h3><table class="table table-sm table-bordered table-striped">';
-    tableHTML += '<thead class="thead-lite"><tr><th>Month</th><th>Savings (€)</th></tr></thead><tbody>';
-    
-    Object.entries(batterySavings.byMonth).forEach(([month, savings]) => {
-        tableHTML += `<tr><td>${month}</td><td>${savings.toFixed(2)}</td></tr>`;
-    });
-    
-    tableHTML += `<tr><th>Total Savings</th><th>${batterySavings.totalSaved.toFixed(2)}</th></tr>`;
-    tableHTML += '</tbody></table>';
-    
-    tableHTML += `<p>Battery Capacity: ${batteryCapacity} kWh</p>`;
-    tableHTML += `<p>Battery Efficiency: ${(batteryEfficiency * 100).toFixed(1)}%</p>`;
-    
-    document.getElementById('batterySavingsTable').innerHTML = tableHTML;
-}
-
-function parseUsageData(data) {
-    const detailedUsage = {};
-    const summaryByMonth = {};
-    let seriesData = [];
-    let kWhPerHour = {
-        import: Array(24).fill(0),
-        export: Array(24).fill(0)
-    };
-    for(let i = 1; i < data.length; i++) {
-        const row = data[i];
-        const dateTime = moment(row[4], "DD-MM-YYYY HH:mm");
-        const readValueKWh = parseFloat(row[2]) * 0.5; // Convert kW to kWh for a 30-minute interval
-        const readType = row[3].includes("Import") ? "import" : "export";
-        const monthYear = dateTime.format("MM-YYYY");
-        const dayOfWeek = dateTime.day(); // 0 (Sunday) to 6 (Saturday)
-        const hourOfDay = dateTime.hour();
-
-        if(!detailedUsage[monthYear]) {
-            detailedUsage[monthYear] = {};
-        }
-        if(!detailedUsage[monthYear][dayOfWeek]) {
-            detailedUsage[monthYear][dayOfWeek] = {};
-        }
-        if(!detailedUsage[monthYear][dayOfWeek][hourOfDay]) {
-            detailedUsage[monthYear][dayOfWeek][hourOfDay] = {
-                import: 0,
-                export: 0
-            };
-        }
-        detailedUsage[monthYear][dayOfWeek][hourOfDay][readType] += readValueKWh;
-        kWhPerHour[readType][hourOfDay] += readValueKWh;
-
-        if(!summaryByMonth[monthYear]) {
-            summaryByMonth[monthYear] = {
-                import: 0,
-                export: 0
-            };
-        }
-        summaryByMonth[monthYear][readType] += readValueKWh;
-
-        const plotValue = readType === "export" ? -readValueKWh : readValueKWh;
-        seriesData.push({
-            x: dateTime.toDate().getTime(),
-            y: plotValue
-        });
-    }
-    return {
-        detailedUsage,
-        summaryByMonth,
-        seriesData,
-        kWhPerHour
-    };
-}
-
-// Function to display kwh per hour of day
-function displayKWhPerHourTable(kWhPerHour) {
-    let tableHTML = "<h3>Total kWh per Hour of Day</h3>";
-    tableHTML += "<table class='table table-sm table-bordered table-striped'>";
-    tableHTML += "<thead class='thead-light'><tr><th>Hour of Day</th><th>Total Import kWh</th><th>Total Export kWh</th></tr></thead>";
-    tableHTML += "<tbody>";
-    for(let hour = 0; hour < 24; hour++) {
-        tableHTML += `<tr><td>${hour}:00 - ${hour + 1}:00</td><td>${kWhPerHour.import[hour].toFixed(2)}</td><td>${kWhPerHour.export[hour].toFixed(2)}</td></tr>`;
-    }
-    tableHTML += "</tbody></table>";
-    document.getElementById("summaryHourTable").innerHTML = tableHTML;
-}
-
-// Function to fetch tariff data from URL
-function fetchTariffFromURL(url, callback) {
-    fetch(url).then(response => response.text()).then(text => {
-        const rows = text.split('\n');
-        const data = rows.map(row => row.split(','));
-        callback(data);
-        document.getElementById('tariffLoadStatus').innerText = 'Tariff data loaded successfully.';
-    }).catch(error => {
-        console.error('Error fetching tariff data:', error);
-        document.getElementById('tariffLoadStatus').innerText = 'Error loading tariff data. Please try again.';
-        tariffLoadStatus.className = 'alert alert-danger'
-    });
-}
-
-// Function to load tariff data on page load
-window.onload = function() {
-    fetchTariffFromURL('/tariffs.csv', function(tariffData) {
-        structuredTariffData = tariffData.slice(1).map(row => ({
-            company: row[0],
-            plan: row[1],
-            date: row[2],
-            timeStart: row[3],
-            timeEnd: row[4],
-            band: row[5],
-            consumePrice: parseFloat(row[6]),
-            exportPrice: parseFloat(row[7]),
-            days: row.slice(8).map(day => parseInt(day, 10))
-        }));
-        displayCSV(tariffData, 'tariffTable', '<h3>Sample of Electricity Tariff Data</h3>');
-        headingTariffTable.style.display = "block";
-        if(Object.keys(globalDetailedUsage).length > 0 && structuredTariffData.length > 0) {
-            const { costByCompanyAndPlan, batterySavings } = calculateCostsUsingTariff(globalDetailedUsage, structuredTariffData);
-            displayTariffCosts(costByCompanyAndPlan);
-            displayBatterySavings(batterySavings);
-        }
-    });
-};
-
-// Event listener for usage file input
-document.getElementById('usageFile').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if(file) {
-        readCSV(file, function(data) {
-            usageCSVData.length = 0;
-            usageCSVData.push(...data);
-            const { detailedUsage, summaryByMonth, seriesData, kWhPerHour } = parseUsageData(usageCSVData);
-            globalDetailedUsage = detailedUsage;
-            displayCSV(usageCSVData, 'usageTable', '<h3>Sample of Electricity Usage Data </h3>');
-            displaySummary(summaryByMonth);
-            createPlotlyCharts(seriesData);
-            displayKWhPerHourTable(kWhPerHour);
-            headingSummaryHourTable.style.display = "block";
-            headingUsageTable.style.display = "block";
-            if(Object.keys(globalDetailedUsage).length > 0 && structuredTariffData.length > 0) {
-                const { costByCompanyAndPlan, batterySavings } = calculateCostsUsingTariff(globalDetailedUsage, structuredTariffData);
-                displayTariffCosts(costByCompanyAndPlan);
-                displayBatterySavings(batterySavings);
-            }
-        });
-    }
-});
-
-// Event listener for "Calculate with Battery" button
-document.getElementById('calculateWithBattery').addEventListener('click', function() {
-    batteryCapacity = parseFloat(document.getElementById('batteryCapacity').value);
-    batteryEfficiency = parseFloat(document.getElementById('batteryEfficiency').value) / 100;
-    batteryCharge = batteryCapacity * (parseFloat(document.getElementById('initialCharge').value) / 100);
-
-    if(Object.keys(globalDetailedUsage).length > 0 && structuredTariffData.length > 0) {
-        const { costByCompanyAndPlan, batterySavings } = calculateCostsUsingTariff(globalDetailedUsage, structuredTariffData);
-        displayTariffCosts(costByCompanyAndPlan);
-        displayBatterySavings(batterySavings);
-    }
-});
-    </script>
+	function parseUsageData(data) {
+		const detailedUsage = {};
+		const summaryByMonth = {};
+		let seriesData = [];
+		// Initialize an array to hold kWh totals for each hour, for both import and export
+		let kWhPerHour = {
+			import: Array(24).fill(0),
+			export: Array(24).fill(0)
+		};
+		for(let i = 1; i < data.length; i++) {
+			const row = data[i];
+			const dateTime = moment(row[4], "DD-MM-YYYY HH:mm");
+			const readValueKWh = parseFloat(row[2]) * 0.5; // Convert kW to kWh for a 30-minute interval
+			const readType = row[3].includes("Import") ? "import" : "export";
+			const monthYear = dateTime.format("MM-YYYY");
+			const dayOfWeek = dateTime.day(); // 0 (Sunday) to 6 (Saturday)
+			const hourOfDay = dateTime.hour();
+			// Accumulate detailed usage for cost calculation
+			if(!detailedUsage[monthYear]) {
+				detailedUsage[monthYear] = {};
+			}
+			if(!detailedUsage[monthYear][dayOfWeek]) {
+				detailedUsage[monthYear][dayOfWeek] = {};
+			}
+			if(!detailedUsage[monthYear][dayOfWeek][hourOfDay]) {
+				detailedUsage[monthYear][dayOfWeek][hourOfDay] = {
+					import: 0,
+					export: 0
+				};
+			}
+			detailedUsage[monthYear][dayOfWeek][hourOfDay][readType] += readValueKWh;
+			// Accumulate kWh per hour for import/export
+			kWhPerHour[readType][hourOfDay] += readValueKWh;
+			// Monthly summary
+			if(!summaryByMonth[monthYear]) {
+				summaryByMonth[monthYear] = {
+					import: 0,
+					export: 0
+				};
+			}
+			summaryByMonth[monthYear][readType] += readValueKWh;
+			// Series data for Plotly chart
+			const plotValue = readType === "export" ? -readValueKWh : readValueKWh;
+			seriesData.push({
+				x: dateTime.toDate().getTime(),
+				y: plotValue
+			});
+		}
+		// Return the accumulated data, including the new kWhPerHour summary
+		return {
+			detailedUsage,
+			summaryByMonth,
+			seriesData,
+			kWhPerHour // Include the hourly kWh summary in the returned object
+		};
+	}
+	// Function to display kwh per hour of day
+	function displayKWhPerHourTable(kWhPerHour) {
+		let tableHTML = "<h3>Total kWh per Hour of Day</h3>";
+		tableHTML += "<table class='table table-sm table-bordered table-striped'>";
+		tableHTML += "<thead class='thead-light'><tr><th>Hour of Day</th><th>Total Import kWh</th><th>Total Export kWh</th></tr></thead>";
+		tableHTML += "<tbody>";
+		for(let hour = 0; hour < 24; hour++) {
+			tableHTML += `<tr><td>${hour}:00 - ${hour + 1}:00</td><td>${kWhPerHour.import[hour].toFixed(2)}</td><td>${kWhPerHour.export[hour].toFixed(2)}</td></tr>`;
+		}
+		tableHTML += "</tbody></table>";
+		document.getElementById("summaryHourTable").innerHTML = tableHTML; // Assume you have a div with id="summaryTable" for this table
+	}
+	// Function to fetch tariff data from URL
+	function fetchTariffFromURL(url, callback) {
+		fetch(url).then(response => response.text()).then(text => {
+			// Parse the fetched CSV text
+			const rows = text.split('\n');
+			const data = rows.map(row => row.split(','));
+			callback(data);
+			// Display success message
+			document.getElementById('tariffLoadStatus').innerText = 'Tariff data loaded successfully.';
+		}).catch(error => {
+			console.error('Error fetching tariff data:', error);
+			// Display error message
+			document.getElementById('tariffLoadStatus').innerText = 'Error loading tariff data. Please try again.';
+			tariffLoadStatus.className = 'alert alert-danger' // Change the alert color to red
+		});
+	}
+	// Function to load tariff data on page load
+	window.onload = function() {
+		// Fetch tariff data from the specified URL
+		//fetchTariffFromURL('https://raw.githubusercontent.com/frankenbubble/HDF_thing/main/tariffs.csv', function(tariffData) {
+        fetchTariffFromURL('/tariffs.csv', function(tariffData) {
+			// Process the fetched tariff data
+			structuredTariffData = tariffData.slice(1).map(row => ({
+				company: row[0],
+				plan: row[1],
+				date: row[2],
+				timeStart: row[3],
+				timeEnd: row[4],
+				band: row[5],
+				consumePrice: parseFloat(row[6]),
+				exportPrice: parseFloat(row[7]),
+				days: row.slice(8, 15).map(day => parseInt(day, 10))
+			}));
+			// Display the tariff data
+			displayCSV(tariffData, 'tariffTable', '<h3>Sample of Electricity Tariff Data</h3>');
+			headingTariffTable.style.display = "block";
+			// Check if both globalDetailedUsage and structuredTariffData have data
+			if(Object.keys(globalDetailedUsage).length > 0 && structuredTariffData.length > 0) {
+				// Calculate the costs using the detailed usage and structured tariff data
+				const costsByCompanyAndPlan = calculateCostsUsingTariff(globalDetailedUsage, structuredTariffData);
+				// Display tariff costs
+				displayTariffCosts(costsByCompanyAndPlan);
+			}
+		});
+	};
+	// Event listener for tariff file input
+	document.getElementById('usageFile').addEventListener('change', function(e) {
+		const file = e.target.files[0];
+		if(file) {
+			readCSV(file, function(data) {
+				// Clear previous data and add new data
+				usageCSVData.length = 0;
+				usageCSVData.push(...data);
+				// Parse and process the usage data without directly updating the UI
+				const {
+					detailedUsage,
+					summaryByMonth,
+					seriesData,
+					kWhPerHour
+				} = parseUsageData(usageCSVData);
+				globalDetailedUsage = detailedUsage;
+				// Now update the UI based on processed data
+				displayCSV(usageCSVData, 'usageTable', '<h3>Sample of Electricity Usage Data </h3>'); // Display raw usage data in a table
+				displaySummary(summaryByMonth); // Display the summarized usage data
+				createPlotlyCharts(seriesData); // Create and display the chart using Plotly
+				displayKWhPerHourTable(kWhPerHour);
+				headingSummaryHourTable.style.display = "block";
+				headingUsageTable.style.display = "block";
+				// Check if both globalDetailedUsage and structuredTariffData have data
+				if(Object.keys(globalDetailedUsage).length > 0 && structuredTariffData.length > 0) {
+					// Calculate the costs using the detailed usage and structured tariff data
+					const costsByCompanyAndPlan = calculateCostsUsingTariff(globalDetailedUsage, structuredTariffData);
+					// Assuming you have a function to display these costs
+					displayTariffCosts(costsByCompanyAndPlan);
+				}
+			});
+		}
+	});
+	</script>
 </body>
+
 </html>
