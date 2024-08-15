@@ -247,6 +247,10 @@
 		};
 		for(let i = 1; i < data.length; i++) {
 			const row = data[i];
+			// Skip empty rows or rows that don't have the expected number of columns
+			if (!row || row.length < 5 || !row[4].trim()) {
+            			continue;
+        		}
 			const dateTime = moment(row[4], "DD-MM-YYYY HH:mm");
 			const readValueKWh = parseFloat(row[2]) * 0.5; // Convert kW to kWh for a 30-minute interval
 			const readType = row[3].includes("Import") ? "import" : "export";
